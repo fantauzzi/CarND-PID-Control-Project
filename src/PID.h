@@ -1,46 +1,27 @@
-#ifndef PID_H
-#define PID_H
+#pragma once
 
 class PID {
+
+	double ctePrev;
+	double cteInt;
+	long long prevTimestamp;
 public:
-  /*
-  * Errors
-  */
-  double p_error;
-  double i_error;
-  double d_error;
+	double Kp;
+	double Ki;
+	double Kd;
 
-  /*
-  * Coefficients
-  */ 
-  double Kp;
-  double Ki;
-  double Kd;
+	PID(const double KpInit, const double Ki, const double Kd);
 
-  /*
-  * Constructor
-  */
-  PID();
+	virtual ~PID();
 
-  /*
-  * Destructor.
-  */
-  virtual ~PID();
+	double getSteering(const double cte, const double speed);
 
-  /*
-  * Initialize PID.
-  */
-  void Init(double Kp, double Ki, double Kd);
+	/*
+	 * Initialize PID.
+	 */
+	void Init(double Kp, double Ki, double Kd);
 
-  /*
-  * Update the PID error variables given cross track error.
-  */
-  void UpdateError(double cte);
+	long long getCurrentTimestamp() const;
 
-  /*
-  * Calculate the total PID error.
-  */
-  double TotalError();
+	void twiddle();
 };
-
-#endif /* PID_H */
