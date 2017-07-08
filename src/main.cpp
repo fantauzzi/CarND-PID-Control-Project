@@ -57,7 +57,7 @@ int main() {
 						auto j = json::parse(s);
 						std::string event = j[0].get<std::string>();
 						if (event == "telemetry") {
-							const double twiddleInterval = 10;  // seconds
+							const double twiddleInterval = 80;  // seconds
 							/*if ((pid.getCurrentTimestamp()-latestTwiddleTime)/1000.0 > twiddleInterval)
 								pid.twiddle();
 								*/
