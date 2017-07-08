@@ -1,10 +1,12 @@
 #pragma once
+#include <vector>
 
 class PID {
 
 	double ctePrev;
 	double cteInt;
 	long long prevTimestamp;
+	void setParams(std::vector<double> params, const double error);
 public:
 	double Kp;
 	double Ki;
@@ -23,5 +25,5 @@ public:
 
 	long long getCurrentTimestamp() const;
 
-	void twiddle();
+	bool twiddle(const double error);
 };

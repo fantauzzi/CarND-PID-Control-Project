@@ -2,7 +2,10 @@
 #include <iostream>
 #include "json.hpp"
 #include "PID.h"
-#include <math.h>
+#include <cmath>
+
+using std::cout;
+using std::endl;
 
 // for convenience
 using json = nlohmann::json;
@@ -38,11 +41,12 @@ int main() {
 
 	PID pid(.1, .05, .1);
 
-	//long long previousTime=0;
-
-	auto latestTwiddleTime =pid.getCurrentTimestamp();
+	// long long previousTime=0;
+	long long latestTwiddleTime =-1;
+	double totalError;
+	unsigned long nSamples;
 	h.onMessage(
-			[&pid, &latestTwiddleTime](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+			[&pid, &latestTwiddleTime, &totalError, &nSamples](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
 				// "42" at the start of the message means there's a websocket message event.
 				// The 4 signifies a websocket message
 				// The 2 signifies a websocket event
@@ -60,20 +64,28 @@ int main() {
 							// j[1] is the data JSON object
 							double cte = std::stod(j[1]["cte"].get<std::string>());
 							double speed = std::stod(j[1]["speed"].get<std::string>());
-							double angle = std::stod(j[1]["steering_angle"].get<std::string>());
-							double steer_value;
-							/*
-							 * TODO: Calcuate steering value here, remember the steering value is
-							 * [-1, 1].
-							 * NOTE: Feel free to play around with the throttle and speed. Maybe use
-							 * another PID controller to control the speed!
-							 */
+							// double angle = std::stod(j[1]["steering_angle"].get<std::string>());
 
-							//auto currentTime =pid.getCurrentTimestamp();
-							//auto deltaT= (previousTime-currentTime)/1000.0;
-							//previousTime=currentTime;
+							totalError+=std::abs(cte);
+							++nSamples;
+
+							if (latestTwiddleTime<0)
+								latestTwiddleTime=pid.getCurrentTimestamp();
+							else {
+								auto currentTime =pid.getCurrentTimestamp();
+								auto deltaT= (currentTime- latestTwiddleTime)/1000.0;
+								if (deltaT> twiddleInterval) {
+									double averageCte = totalError/nSamples;
+									totalError=0;
+									nSamples=0;
+									bool paramsTuned = pid.twiddle(averageCte);
+									if (paramsTuned)
+										cout << "Params tuning complete" << endl;
+									latestTwiddleTime=pid.getCurrentTimestamp();
+								}
+							}
 							//std::cout << "DEltaT= " << deltaT << std::endl;
-							steer_value = pid.getSteering(cte, speed);
+							double steer_value = pid.getSteering(cte, speed);
 							// DEBUG
 							// std::cout << "CTE: " << cte << " Steering Value: " << steer_value << std::endl;
 
