@@ -8,18 +8,12 @@
 using namespace std;
 
 PID::PID(const double KpInit, const double KiInit, const double KdInit) :
-		ctePrev { -100. }, cteInt { .0 }, prevTimestamp { -1 }, Kp { KpInit }, Ki {
+		errorPrev { 0. }, errorInt { .0 }, prevTimestamp { -1 }, Kp { KpInit }, Ki {
 				KiInit }, Kd { KdInit } {
 }
 
 PID::~PID() {
 }
-
-/*void PID::UpdateError(double cte) {
- }
-
- double PID::TotalError() {
- }*/
 
 long long PID::getCurrentTimestamp() const {
 	long long milliseconds_since_epoch = std::chrono::duration_cast<
@@ -28,19 +22,22 @@ long long PID::getCurrentTimestamp() const {
 	return milliseconds_since_epoch;
 }
 
-double PID::getSteering(const double cte, const double speed) {
+double PID::getCorrection(const double error) {
 
 	auto currentTimestamp = getCurrentTimestamp();
-	auto deltaT =
-			(prevTimestamp > 0) ?
-					(currentTimestamp - prevTimestamp) / 1000.0 : 10e6; // convert to seconds
-	prevTimestamp = currentTimestamp;
-	auto cteDiff = (cte != -100) ? cte - ctePrev : 0;
-	cteInt += cte;
-	ctePrev = cte;
-	double steering = -Kp * cte - Kd * cteDiff / deltaT - Ki * cteInt * deltaT;
+	if (prevTimestamp<0) {
+		prevTimestamp=currentTimestamp;
+		errorPrev=error;
+		return 0;
+	}
+	auto deltaT = (currentTimestamp - prevTimestamp) / 1000.0; // convert to seconds
+	auto errorDiff = error- errorPrev;
+	errorInt += error;
+	double correction = -Kp * error - Kd * errorDiff / deltaT - Ki * errorInt * deltaT;
 	// cout << "DeltaT= " << deltaT << endl;
-	return steering;
+	prevTimestamp = currentTimestamp;
+	errorPrev = error;
+	return correction;
 }
 
 void PID::setParams(std::vector<double> params, const double error) {  // PDI
@@ -64,8 +61,8 @@ bool PID::twiddle(const double error) {
 	};
 	static State state {initialising};
 	static const double tollerance { 0.001 };
-	static vector<double> deltaParams { .1, .1, .05 };
-	static vector<double> params { .2, .2, .1 };
+	static vector<double> deltaParams { .02, .0002, .02 };
+	static vector<double> params { .11, .001, .1 };
 	static auto bestError = error;
 	static unsigned i = -1;
 

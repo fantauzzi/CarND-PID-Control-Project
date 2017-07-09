@@ -39,14 +39,16 @@ std::string hasData(std::string s) {
 int main() {
 	uWS::Hub h;
 
-	PID pid(.1, .05, .1);
+	PID pidSteering(.11, .001, .1);
+	//PID pidStearing(5, .0, 3.25);
+	// PID pidThrottle(.1, .010, .0);
 
 	// long long previousTime=0;
 	long long latestTwiddleTime =-1;
 	double totalError;
 	unsigned long nSamples;
 	h.onMessage(
-			[&pid, &latestTwiddleTime, &totalError, &nSamples](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+			[&pidSteering, &latestTwiddleTime, &totalError, &nSamples](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
 				// "42" at the start of the message means there's a websocket message event.
 				// The 4 signifies a websocket message
 				// The 2 signifies a websocket event
@@ -70,28 +72,34 @@ int main() {
 							++nSamples;
 
 							if (latestTwiddleTime<0)
-								latestTwiddleTime=pid.getCurrentTimestamp();
+								latestTwiddleTime=pidSteering.getCurrentTimestamp();
 							else {
-								auto currentTime =pid.getCurrentTimestamp();
+								auto currentTime =pidSteering.getCurrentTimestamp();
 								auto deltaT= (currentTime- latestTwiddleTime)/1000.0;
 								if (deltaT> twiddleInterval) {
 									double averageCte = totalError/nSamples;
 									totalError=0;
 									nSamples=0;
-									bool paramsTuned = pid.twiddle(averageCte);
+									bool paramsTuned = pidSteering.twiddle(averageCte);
 									if (paramsTuned)
 										cout << "Params tuning complete" << endl;
-									latestTwiddleTime=pid.getCurrentTimestamp();
+									latestTwiddleTime=pidSteering.getCurrentTimestamp();
 								}
 							}
 							//std::cout << "DEltaT= " << deltaT << std::endl;
-							double steer_value = pid.getSteering(cte, speed);
+							double steer_value = pidSteering.getCorrection(cte);
+							//assert(-1<=steer_value & steer_value<=1);
+							if (steer_value<-1)
+								steer_value=-1;
+							else if (steer_value > 1)
+								steer_value =1;
+							// cout << "CTE="<< cte << " Steering=" << steer_value << endl;
 							// DEBUG
 							// std::cout << "CTE: " << cte << " Steering Value: " << steer_value << std::endl;
 
 							json msgJson;
 							msgJson["steering_angle"] = steer_value;
-							msgJson["throttle"] = 0.3;
+							msgJson["throttle"] = 0.30;
 							auto msg = "42[\"steer\"," + msgJson.dump() + "]";
 							//std::cout << msg << std::endl;
 							ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);

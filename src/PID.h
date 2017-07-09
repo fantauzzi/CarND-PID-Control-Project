@@ -3,8 +3,8 @@
 
 class PID {
 
-	double ctePrev;
-	double cteInt;
+	double errorPrev;
+	double errorInt;
 	long long prevTimestamp;
 	void setParams(std::vector<double> params, const double error);
 public:
@@ -16,12 +16,7 @@ public:
 
 	virtual ~PID();
 
-	double getSteering(const double cte, const double speed);
-
-	/*
-	 * Initialize PID.
-	 */
-	void Init(double Kp, double Ki, double Kd);
+	double getCorrection(const double cte);
 
 	long long getCurrentTimestamp() const;
 
