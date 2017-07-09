@@ -40,11 +40,11 @@ double PID::getCorrection(const double error) {
 	return correction;
 }
 
-void PID::setParams(std::vector<double> params, const double error) {  // PDI
+void PID::setParams(std::vector<double> params, const double error) {
 	assert(params.size()==3);
 	Kp = params[0];
-	Ki= params[2];
-	Kd = params[1];
+	Ki= params[1];
+	Kd = params[2];
 	cout << "Set params to P=" << Kp << " I=" << Ki << " D=" << Kd << " Error=" << error << endl;
 }
 

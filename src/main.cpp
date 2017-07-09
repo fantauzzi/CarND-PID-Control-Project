@@ -45,8 +45,8 @@ int main() {
 
 	// long long previousTime=0;
 	long long latestTwiddleTime =-1;
-	double totalError;
-	unsigned long nSamples;
+	double totalError {0};
+	unsigned long nSamples {0};
 	h.onMessage(
 			[&pidSteering, &latestTwiddleTime, &totalError, &nSamples](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
 				// "42" at the start of the message means there's a websocket message event.
@@ -60,15 +60,12 @@ int main() {
 						std::string event = j[0].get<std::string>();
 						if (event == "telemetry") {
 							const double twiddleInterval = 80;  // seconds
-							/*if ((pid.getCurrentTimestamp()-latestTwiddleTime)/1000.0 > twiddleInterval)
-								pid.twiddle();
-								*/
 							// j[1] is the data JSON object
 							double cte = std::stod(j[1]["cte"].get<std::string>());
 							double speed = std::stod(j[1]["speed"].get<std::string>());
 							// double angle = std::stod(j[1]["steering_angle"].get<std::string>());
 
-							totalError+=std::abs(cte);
+							totalError+=std::abs(cte);  // TODO try with quadratic error
 							++nSamples;
 
 							if (latestTwiddleTime<0)
@@ -78,17 +75,16 @@ int main() {
 								auto deltaT= (currentTime- latestTwiddleTime)/1000.0;
 								if (deltaT> twiddleInterval) {
 									double averageCte = totalError/nSamples;
-									totalError=0;
-									nSamples=0;
 									bool paramsTuned = pidSteering.twiddle(averageCte);
 									if (paramsTuned)
 										cout << "Params tuning complete" << endl;
+									totalError=0;
+									nSamples=0;
 									latestTwiddleTime=pidSteering.getCurrentTimestamp();
 								}
 							}
 							//std::cout << "DEltaT= " << deltaT << std::endl;
 							double steer_value = pidSteering.getCorrection(cte);
-							//assert(-1<=steer_value & steer_value<=1);
 							if (steer_value<-1)
 								steer_value=-1;
 							else if (steer_value > 1)
