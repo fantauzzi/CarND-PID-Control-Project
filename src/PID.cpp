@@ -43,8 +43,7 @@ double PID::computeCorrection(const double error) {
 
 void PID::setParams(std::vector<double> params, const double error) {
 	setParams(params);
-	cout << "Set params to P=" << Kp << " I=" << Ki << " D=" << Kd << " Error="
-			<< error << endl;
+	cout << "Previous run error= " << error << ". Setting params to P=" << Kp << " I=" << Ki << " D=" << Kd << endl;
 }
 
 void PID::setParams(std::vector<double> params) {
@@ -66,8 +65,8 @@ bool PID::twiddle(const double error) {
 	// When the sum of parameter changes goes under tolerance, the algorithm stops
 	static const double tollerance { 0.001 };
 	// Parameter changes, set to their initial values
-	static vector<double> deltaParams { .02, .0002, .02 };
-	static vector<double> params { .11, .001, .1 };  // TODO fix hardwiring
+	static vector<double> deltaParams { .0, .0, .0 };
+	static vector<double> params {.0, .0, .0 };
 	static auto bestError = error;  // Keep track of the best error so far
 	static unsigned i = -1;  // Index of the parameter currently under update in params[]
 
@@ -76,7 +75,12 @@ bool PID::twiddle(const double error) {
 		case done:
 			return true;
 		case initialising: {
-			setParams(params, error);
+			params[0]=Kp;
+			params[1]=Ki;
+			params[2]=Kd;
+			deltaParams[0] = Kp/4;
+			deltaParams[1] = Ki/4;
+			deltaParams[2] = Kd/4;
 			state = initialised;
 			return false;
 		}

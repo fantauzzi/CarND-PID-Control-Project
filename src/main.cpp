@@ -3,9 +3,14 @@
 #include "json.hpp"
 #include "PID.h"
 #include <cmath>
+#include <vector>
+#include <string>
 
 using std::cout;
 using std::endl;
+using std::vector;
+using std::string;
+using std::stod;
 
 // for convenience
 using json = nlohmann::json;
@@ -40,20 +45,56 @@ std::string hasData(std::string s) {
 	return "";
 }
 
-int main() {
+void printParamsError() {
+	cout << "Usage:" << endl << "pid [tune] [p-value i-value d-value]";
+	exit(-1);
+}
+
+int main(int argc, char ** argv) {
+	/*
+	 * Process command line parameters. Set pParam, iParam and dParam to
+	 * the parameters for the PID controller. Set tuneParams to true
+	 * if parameters tuning (with twiddle) is requested.
+	 */
+	if (argc != 1 && argc != 2 && argc != 4 && argc != 5)
+		printParamsError();
+	vector<string> args(argv, argv + argc);
+
+	bool tuneParams { false };
+	double pParam = .110035;
+	double iParam = .004;
+	double dParam = .0866461;
+	if (argc > 1 && args[1] == "tune") {
+		if (argc!=2 && argc!=5)
+			printParamsError();
+		tuneParams = true;
+	}
+	if (argc == 4) {
+		pParam = stod(args[1]);
+		iParam = stod(args[2]);
+		dParam = stod(args[3]);
+	} else if (argc == 5) {
+		pParam = stod(args[2]);
+		iParam = stod(args[3]);
+		dParam = stod(args[4]);
+	}
+
+	string s= tuneParams ? "Tuning starting with " : "Running with ";
+	cout << s << "P="<<pParam<<" I=" << iParam << " D=" << dParam << endl;
+
 	uWS::Hub h;
 
-	// P=0.150035 I=0.00133488 D=0.0866461 Error=0.367315
-	// PID pidSteering(.150035, .00133488, .0866461);
-	PID pidSteering(.150035, .00133488, .1);
+// P=0.150035 I=0.00133488 D=0.0866461 Error=0.367315
+// PID pidSteering(.150035, .00133488, .0866461);
+	PID pidSteering(pParam, iParam, dParam);
 	PID pidThrottle(.1, .005, .01);
 
-	// long long previousTime=0;
+// long long previousTime=0;
 	long long latestTwiddleTime = -1;
 	double totalError { 0 };
 	unsigned long nSamples { 0 };
 	h.onMessage(
-			[&pidSteering, &pidThrottle, &latestTwiddleTime, &totalError, &nSamples](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+			[&pidSteering, &pidThrottle, &latestTwiddleTime, &totalError, &nSamples, &tuneParams](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
 				// "42" at the start of the message means there's a websocket message event.
 				// The 4 signifies a websocket message
 				// The 2 signifies a websocket event
@@ -69,26 +110,28 @@ int main() {
 							double cte = std::stod(j[1]["cte"].get<std::string>());
 							cte=sign(cte)*pow(cte,2);
 							double speed = std::stod(j[1]["speed"].get<std::string>());
-							double speedError = speed-45;
+							double speedError = speed-40;// Target speed 40
 
 							// double angle = std::stod(j[1]["steering_angle"].get<std::string>());
 
-							totalError+=std::abs(cte);// TODO try with quadratic error
+							totalError+=std::abs(cte);
 							++nSamples;
 
-							if (latestTwiddleTime<0)
-							latestTwiddleTime=pidSteering.getCurrentTimestamp();
-							else {
-								auto currentTime =pidSteering.getCurrentTimestamp();
-								auto deltaT= (currentTime- latestTwiddleTime)/1000.0;
-								if (deltaT> twiddleInterval) {
-									double averageCte = totalError/nSamples;
-									bool paramsTuned = pidSteering.twiddle(averageCte);
-									if (paramsTuned)
-									cout << "Params tuning complete" << endl;
-									totalError=0;
-									nSamples=0;
-									latestTwiddleTime=pidSteering.getCurrentTimestamp();
+							if (tuneParams) {
+								if (latestTwiddleTime<0)
+								latestTwiddleTime=pidSteering.getCurrentTimestamp();
+								else {
+									auto currentTime =pidSteering.getCurrentTimestamp();
+									auto deltaT= (currentTime- latestTwiddleTime)/1000.0;
+									if (deltaT> twiddleInterval) {
+										double averageCte = totalError/nSamples;
+										bool paramsTuned = pidSteering.twiddle(averageCte);
+										if (paramsTuned)
+										cout << "Params tuning complete" << endl;
+										totalError=0;
+										nSamples=0;
+										latestTwiddleTime=pidSteering.getCurrentTimestamp();
+									}
 								}
 							}
 
@@ -101,7 +144,7 @@ int main() {
 
 							json msgJson;
 							msgJson["steering_angle"] = steerValue;
-							msgJson["throttle"] = throttleValue;// Was .30
+							msgJson["throttle"] = throttleValue;	// Was .30
 							auto msg = "42[\"steer\"," + msgJson.dump() + "]";
 							ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 						}
@@ -113,8 +156,8 @@ int main() {
 				}
 			});
 
-	// We don't need this since we're not using HTTP but if it's removed the program
-	// doesn't compile :-(
+// We don't need this since we're not using HTTP but if it's removed the program
+// doesn't compile :-(
 	h.onHttpRequest(
 			[](uWS::HttpResponse *res, uWS::HttpRequest req, char *data, size_t, size_t) {
 				const std::string s = "<h1>Hello world!</h1>";
