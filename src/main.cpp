@@ -21,6 +21,10 @@ double rad2deg(double x) {
 	return x * 180 / pi();
 }
 
+template<typename T> int sign(T val) {
+	return (T(0) < val) - (val < T(0));
+}
+
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
 // else the empty string "" will be returned.
@@ -39,13 +43,15 @@ std::string hasData(std::string s) {
 int main() {
 	uWS::Hub h;
 
-	PID pidSteering(.11, .001, .1);
+	// P=0.150035 I=0.00133488 D=0.0866461 Error=0.367315
+	// PID pidSteering(.150035, .00133488, .0866461);
+	PID pidSteering(.150035, .00133488, .1);
 	PID pidThrottle(.1, .005, .01);
 
 	// long long previousTime=0;
-	long long latestTwiddleTime =-1;
-	double totalError {0};
-	unsigned long nSamples {0};
+	long long latestTwiddleTime = -1;
+	double totalError { 0 };
+	unsigned long nSamples { 0 };
 	h.onMessage(
 			[&pidSteering, &pidThrottle, &latestTwiddleTime, &totalError, &nSamples](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
 				// "42" at the start of the message means there's a websocket message event.
@@ -61,17 +67,17 @@ int main() {
 							const double twiddleInterval = 80;  // seconds
 							// j[1] is the data JSON object
 							double cte = std::stod(j[1]["cte"].get<std::string>());
+							cte=sign(cte)*pow(cte,2);
 							double speed = std::stod(j[1]["speed"].get<std::string>());
 							double speedError = speed-45;
 
 							// double angle = std::stod(j[1]["steering_angle"].get<std::string>());
 
-							totalError+=std::abs(cte);  // TODO try with quadratic error
+							totalError+=std::abs(cte);// TODO try with quadratic error
 							++nSamples;
 
-
 							if (latestTwiddleTime<0)
-								latestTwiddleTime=pidSteering.getCurrentTimestamp();
+							latestTwiddleTime=pidSteering.getCurrentTimestamp();
 							else {
 								auto currentTime =pidSteering.getCurrentTimestamp();
 								auto deltaT= (currentTime- latestTwiddleTime)/1000.0;
@@ -79,30 +85,24 @@ int main() {
 									double averageCte = totalError/nSamples;
 									bool paramsTuned = pidSteering.twiddle(averageCte);
 									if (paramsTuned)
-										cout << "Params tuning complete" << endl;
+									cout << "Params tuning complete" << endl;
 									totalError=0;
 									nSamples=0;
 									latestTwiddleTime=pidSteering.getCurrentTimestamp();
 								}
 							}
 
-							//std::cout << "DEltaT= " << deltaT << std::endl;
-							auto steerValue = pidSteering.getCorrection(cte);
+							auto steerValue = pidSteering.computeCorrection(cte);
 							if (steerValue<-1)
-								steerValue=-1;
+							steerValue=-1;
 							else if (steerValue > 1)
-								steerValue =1;
-							auto throttleValue=pidThrottle.getCorrection(speedError);
-							//cout << "Value=" << throttleValue<< " Correction=" << throttleCorrection << endl;
-							// cout << "CTE="<< cte << " Steering=" << steerValue << endl;
-							// DEBUG
-							// std::cout << "CTE: " << cte << " Steering Value: " << steer_value << std::endl;
+							steerValue =1;
+							auto throttleValue=pidThrottle.computeCorrection(speedError);
 
 							json msgJson;
 							msgJson["steering_angle"] = steerValue;
-							msgJson["throttle"] = throttleValue;  // Was .30
+							msgJson["throttle"] = throttleValue;// Was .30
 							auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-							//std::cout << msg << std::endl;
 							ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 						}
 					} else {

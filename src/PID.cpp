@@ -12,117 +12,122 @@ PID::PID(const double KpInit, const double KiInit, const double KdInit) :
 				KiInit }, Kd { KdInit } {
 }
 
-PID::~PID() {
-}
-
-long long PID::getCurrentTimestamp() const {
-	long long milliseconds_since_epoch = std::chrono::duration_cast<
+long long PID::getCurrentTimestamp() {
+	long long millisecondsSinceEpoch = std::chrono::duration_cast<
 			std::chrono::milliseconds>(
 			std::chrono::system_clock::now().time_since_epoch()).count();
-	return milliseconds_since_epoch;
+	return millisecondsSinceEpoch;
 }
 
-double PID::getCorrection(const double error) {
+double PID::computeCorrection(const double error) {
 
 	auto currentTimestamp = getCurrentTimestamp();
-	if (prevTimestamp<0) {
-		prevTimestamp=currentTimestamp;
-		errorPrev=error;
-		return 0;
+
+	// Handle the first call to the method
+	if (prevTimestamp < 0) {
+		prevTimestamp = currentTimestamp;
+		errorPrev = error;
+		return -Kp * error;
 	}
-	auto deltaT = (currentTimestamp - prevTimestamp) / 1000.0; // convert to seconds
-	auto errorDiff = error- errorPrev;
-	errorInt += error;
-	double correction = -Kp * error - Kd * errorDiff / deltaT - Ki * errorInt * deltaT;
-	// cout << "DeltaT= " << deltaT << endl;
+
+	// Update object state and compute and return control value
+	auto deltaT = (currentTimestamp - prevTimestamp) / 1000.0;  // convert to seconds
+	auto errorDiff = error - errorPrev;
+	errorInt += error*deltaT;
+	double correction = -Kp * error - Kd * errorDiff / deltaT
+			- Ki * errorInt;
 	prevTimestamp = currentTimestamp;
 	errorPrev = error;
 	return correction;
 }
 
 void PID::setParams(std::vector<double> params, const double error) {
-	assert(params.size()==3);
-	Kp = params[0];
-	Ki= params[1];
-	Kd = params[2];
-	cout << "Set params to P=" << Kp << " I=" << Ki << " D=" << Kd << " Error=" << error << endl;
+	setParams(params);
+	cout << "Set params to P=" << Kp << " I=" << Ki << " D=" << Kd << " Error="
+			<< error << endl;
 }
 
-/**
- * Set the PID controller parameters to the next set of values as per twiddle algorithm, until
- * twiddle converges, and returns false; once twiddle converges, subsequent calls leave the
- * parameters unchanged and return true.
- * @param error
- * @return
- */
+void PID::setParams(std::vector<double> params) {
+	assert(params.size() == 3);
+	Kp = params[0];
+	Ki = params[1];
+	Kd = params[2];
+}
+
 bool PID::twiddle(const double error) {
+	/* Implemented as a state machine. A Boost coroutine would be more readable and
+	 * maintainable, but including Boost would make submission of the project
+	 * to Udacity more complicated. See http://www.boost.org/doc/libs/1_64_0/libs/coroutine2/doc/html/index.html
+	 */
 	enum State {
 		initialising, initialised, looping, if1, if2, done
 	};
-	static State state {initialising};
+	static State state { initialising };
+	// When the sum of parameter changes goes under tolerance, the algorithm stops
 	static const double tollerance { 0.001 };
+	// Parameter changes, set to their initial values
 	static vector<double> deltaParams { .02, .0002, .02 };
-	static vector<double> params { .11, .001, .1 };
-	static auto bestError = error;
-	static unsigned i = -1;
+	static vector<double> params { .11, .001, .1 };  // TODO fix hardwiring
+	static auto bestError = error;  // Keep track of the best error so far
+	static unsigned i = -1;  // Index of the parameter currently under update in params[]
 
 	while (true) {
 		switch (state) {
-			case done:
+		case done:
+			return true;
+		case initialising: {
+			setParams(params, error);
+			state = initialised;
+			return false;
+		}
+		case initialised: {
+			auto errorsSum = accumulate(begin(params), end(params), 0.);
+			if (errorsSum <= tollerance) {
+				state = done;
 				return true;
-			case initialising: {
-				setParams(params, error);
+			}
+			state = looping;
+			break;
+		}
+		case looping: {
+			++i;
+			if (i > 2) {
+				i = -1;
 				state = initialised;
+				break;
+			}
+			params[i] += deltaParams[i];
+			setParams(params, error);
+			state = if1;
+			return false;
+		}
+		case if1: {
+			if (error < bestError) {
+				bestError = error;
+				deltaParams[i] *= 1.1;
+				state = looping;
+				break;
+			} else {
+				params[i] -= 2 * deltaParams[i];
+				setParams(params, error);
+				state = if2;
 				return false;
 			}
-			case initialised: {
-				auto errorsSum = accumulate(begin(params), end(params), 0.);
-				if (errorsSum <= tollerance) {
-					state = done;
-					return true;
-				}
+		}
+		case if2: {
+			if (error < bestError) {
+				bestError = error;
+				deltaParams[i] *= 1.1;
+				state = looping;
+				break;
+			} else {
+				params[i] += deltaParams[i];
+				deltaParams[i] *= 0.9;
+				setParams(params, error);
 				state = looping;
 				break;
 			}
-			case looping: {
-				++i;
-				if (i>2) {
-					i=-1;
-					state = initialised;
-					break;
-				}
-				params[i] += deltaParams[i];
-				setParams(params, error);
-				state = if1;
-				return false;
-			}
-			case if1: {
-				if (error < bestError) {
-					bestError = error;
-					deltaParams[i] *= 1.1;
-					state = looping;
-					break;
-				} else {
-					params[i] -= 2 * deltaParams[i];
-					setParams(params, error);
-					state = if2;
-					return false;
-				}
-			}
-			case if2: {
-				if (error < bestError) {
-					bestError = error;
-					deltaParams[i] *= 1.1;
-					state = looping;
-					break;
-				} else {
-					params[i] += deltaParams[i];
-					deltaParams[i] *= 0.9;
-					setParams(params, error);
-					state = looping;
-					break;
-				}
-			}
+		}
 
 		}
 	}
