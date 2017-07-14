@@ -1,7 +1,9 @@
-# CarND-Controls-PID
-Self-Driving Car Engineer Nanodegree Program
+# PID Controller
+*Self-Driving Car Engineer Nanodegree Program*
 
 ---
+
+In this project I implemented a simple PID controller to drive a simulated car around a the track. The program receives data about the car cross-track error and speed from the simulator, computes the needed steering angle and throttle, and direct the simulator to apply them to the car. Communication between the program and the simulator is via sockets.
 
 ## Dependencies
 
@@ -28,12 +30,21 @@ Self-Driving Car Engineer Nanodegree Program
 
 There's an experimental patch for windows in this [PR](https://github.com/udacity/CarND-PID-Control-Project/pull/3)
 
-## Basic Build Instructions
+## Basic Build and Run Instructions
 
 1. Clone this repo.
 2. Make a build directory: `mkdir build && cd build`
 3. Compile: `cmake .. && make`
 4. Run it: `./pid`. 
+
+### Command Line Parameters
+
+The program takes these optional arguments:
+
+`./pid [tune] [P-coefficient I-coefficient D-coefficient]
+
+Argument `tune` directs the program to run a tuning algorithm (twiddle) for its PID coefficients; see below for details. The next three parameters are the coeeficients governing the PID controller; in case of parameters tuning, they are the optimisation starting values.
+
 
 ## Editor Settings
 

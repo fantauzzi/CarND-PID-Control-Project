@@ -84,12 +84,9 @@ int main(int argc, char ** argv) {
 
 	uWS::Hub h;
 
-// P=0.150035 I=0.00133488 D=0.0866461 Error=0.367315
-// PID pidSteering(.150035, .00133488, .0866461);
 	PID pidSteering(pParam, iParam, dParam);
 	PID pidThrottle(.1, .005, .01);
 
-// long long previousTime=0;
 	long long latestTwiddleTime = -1;
 	double totalError { 0 };
 	unsigned long nSamples { 0 };
