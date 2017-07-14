@@ -48,9 +48,9 @@ void PID::setParams(std::vector<double> params, const double error) {
 
 void PID::setParams(std::vector<double> params) {
 	assert(params.size() == 3);
-	Kp = params[0];
-	Ki = params[1];
-	Kd = params[2];
+	Kp = params[0];  // Params are in this order because I want to tune P first, then D and finally I
+	Ki = params[2];
+	Kd = params[1];
 }
 
 bool PID::twiddle(const double error) {
@@ -75,12 +75,12 @@ bool PID::twiddle(const double error) {
 		case done:
 			return true;
 		case initialising: {
-			params[0]=Kp;
-			params[1]=Ki;
-			params[2]=Kd;
+			params[0]=Kp;  // Note the order of params: P-D-I.
+			params[2]=Ki;
+			params[1]=Kd;
 			deltaParams[0] = Kp/4;
-			deltaParams[1] = Ki/4;
-			deltaParams[2] = Kd/4;
+			deltaParams[2] = Ki/4;
+			deltaParams[1] = Kd/4;
 			state = initialised;
 			return false;
 		}

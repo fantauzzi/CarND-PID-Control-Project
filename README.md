@@ -3,7 +3,15 @@
 
 ---
 
-In this project I implemented a simple PID controller to drive a simulated car around a the track. The program receives data about the car cross-track error and speed from the simulator, computes the needed steering angle and throttle, and direct the simulator to apply them to the car. Communication between the program and the simulator is via sockets.
+In this project I implemented a simple PID controller to drive a simulated car around a the track. The program receives data about the car cross-track error and speed from the simulator, computes the needed steering angle and throttle, and directs the simulator to apply them to the car. Communication between the program and the simulator is via sockets.
+
+The steering angle as accepted by the simulator must be in the range [-1, 1]. When the controller produces a value outside that interval, it is replaced with the closest value in the interval (that is, either 1 or -1).  Output of the controller is calculated as:
+
+where `P`, `I` and `D` are the controller coefficients, `Δt` is the time interval since the previous output updated, and `e` is the error.
+
+Error `e` is the square of the cross-track error (distance of the car from the center-line), but it is given a positive or negative sign, depending on whether the car is to the right or left of the center-line. The simulator doesn't provide measurement updates at regular (evenly-spaced) time intervals, therefore `Δt` changes at every controller update.
+
+As far as I can observe, latency in the communication between controller and simulator is too small to have an impact, and I therefore ignored it in the implementation.
 
 ## Dependencies
 
@@ -45,59 +53,21 @@ The program takes these optional arguments:
 
 Argument `tune` directs the program to run a tuning algorithm (twiddle) for its PID coefficients; see below for details. The next three parameters are the coeeficients governing the PID controller; in case of parameters tuning, they are the optimisation starting values.
 
+## Considerations on Parameter Tuning
 
-## Editor Settings
 
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
 
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
+Video below was taken with coefficient P set to 0.11 and the remaining to 0. As soon as the car deviates from its track, it drives toward the track overshooting it by a wider and wider and margin, until it goes off-roard.
 
-## Code Style
+That is corrected by introducing the I coefficient, set to 0.0046561 in the video below.
 
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
+The car has a tendency to keep slightly on the right of the centerline, which can be corrected setting the I coefficient.
 
-## Project Instructions and Rubric
+The default value of coefficients for the steering PID controller is what I obtained after a first manual tuning, and then automated fine tuning with twiddle.
 
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
+I also set the throttle with a PID controller that tries to keep 40 mph, with coefficients (P, I, D) hand tuned and hard-wired to (0.1, 0.005, 0.01).
 
-More information is only accessible by people who are already enrolled in Term 2
-of CarND. If you are enrolled, see [the project page](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/e8235395-22dd-4b87-88e0-d108c5e5bbf4/concepts/6a4d8d42-6a04-4aa6-b284-1697c0fd6562)
-for instructions and the project rubric.
+As the target speed is set higher, it is increasingly difficult to find values for the steering controller that keep the car on track, and from where to do fine tuning. In any case, the resulting trajectory almost gives me motion sickness just looking at the simulator.
 
-## Hints!
+When the program does automated tuning of parameters, it averages the error for 80 seconds, which is roughly the time for one lap at 40 mph, and then, based on the average error recorded during that period, determines the new coefficients settings. The error adopted is the square of the cross-track error, with negative or positive sign depending on wether the car is off-track to the left or right of the center-line.
 
-* You don't have to follow this directory structure, but if you do, your work
-  will span all of the .cpp files here. Keep an eye out for TODOs.
-
-## Call for IDE Profiles Pull Requests
-
-Help your fellow students!
-
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to we ensure
-that students don't feel pressured to use one IDE or another.
-
-However! I'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
-
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
-
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
-
-Frankly, I've never been involved in a project with multiple IDE profiles
-before. I believe the best way to handle this would be to keep them out of the
-repo root to avoid clutter. My expectation is that most profiles will include
-instructions to copy files to a new location to get picked up by the IDE, but
-that's just a guess.
-
-One last note here: regardless of the IDE used, every submitted project must
-still be compilable with cmake and make./
