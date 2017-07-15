@@ -70,23 +70,23 @@ The program takes these optional arguments:
 
 Argument `tune` directs the program to run a tuning algorithm ([twiddle](https://martin-thoma.com/twiddle/)) for its steering PID coefficients; see below for details. The next three parameters are the coefficients governing the steering PID controller; in case of parameters tuning, they are the optimisation starting values.
 
-## Considerations on Parameter Tuning
+## Considerations on Parameters Tuning
 
-A non-zero `P` (proportional) coefficient makes the car tend to drive around the road center-line. With the other coefficients set to 0, as soon as the car deviates from its track, it drives toward the track overshooting it by a wider and wider margin, until it goes off-roard. A higher `P` makes the car more likely to overshoot the center-line, but a smaller `P` let it go off-road along curves.
+A `P` (proportional) coefficient can make the car drive around the road center-line. With `P` high enough and the other coefficients set to 0, as soon as the car deviates from its track, it drives toward the track overshooting it by a wider and wider margin, until it goes off-roard. A higher `P` makes the car more likely to overshoot the center-line, but a smaller `P` let it go off-road along curves.
 
-Overshooting can be corrected by introducing the `D` (differential) coefficient. ???
+Overshooting can be corrected by introducing the `D` (differential) coefficient. A too small `D` may be ineffective in dampening overshooting, while a too large one may mean a slow convergence toward the center-line. 
 
-The car has a tendency to keep slightly on the right of the centerline, which can be corrected setting the `I` (integral) coefficient. A too large `I` ???
+The car has a tendency to keep slightly on the right of the centerline, which can be corrected setting the `I` (integral) coefficient. A too large `I` sends the car off-road and running in circles.
 
-Coefficients default values for the steering controller are (P, I, D) = (?, ?, ?). I determined them with a first manual tuning, and then with automated fine tuning with twiddle.
+I determined the default coefficients for the steering controller with a first manual tuning, and then with automated fine tuning with twiddle.
 
-I also set the throttle with a PID controller; it tries to keep 40 mph, with coefficients (P, I, D) hand-tuned and hard-wired to (0.1, 0.005, 0.01).
+I also set the throttle with a PID controller; it tries to keep 40 mph, with coefficients that I tuned by trial and error.
 
 As the target speed is set higher, it is increasingly difficult to find values for the steering controller that keep the car on track. In any case, the resulting trajectory almost gives me motion sickness just looking at the simulator.
 
 ### Automated Parameters Tuning (twiddle)
 
-For automated tuning, the program averages the steering error for 80 seconds, which is roughly the time for one lap at 40 mph. Based on that, the program determines the new coefficients setting with a twiddle algorithm implementation.
+For automated tuning, the program averages the absolute value of the steering error for 64 seconds, which is roughly the time for one lap at 40 mph. Based on that, the program determines the new coefficients setting with a twiddle algorithm implementation.
 
 The car keeps running in the simulator, and twiddle updates the controller parameters every 64 seconds. Best values found so far are printed to console along with their error.
 

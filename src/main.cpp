@@ -15,17 +15,11 @@ using std::stod;
 // for convenience
 using json = nlohmann::json;
 
-// For converting back and forth between radians and degrees.
-constexpr double pi() {
-	return M_PI;
-}
-double deg2rad(double x) {
-	return x * pi() / 180;
-}
-double rad2deg(double x) {
-	return x * 180 / pi();
-}
-
+/**
+ * Determines the sign of the argument comparing it with 0.
+ * @param val the argument
+ * @return 1 if 0 is less than val, -1 if val is less than 0, 0 if neither is true
+ */
 template<typename T> int sign(T val) {
 	return (T(0) < val) - (val < T(0));
 }
@@ -45,8 +39,11 @@ std::string hasData(std::string s) {
 	return "";
 }
 
+/**
+ * Prints out the program usage and parameters and exits.
+ */
 void printParamsError() {
-	cout << "Usage:" << endl << "pid [tune] [p-value i-value d-value]";
+	cout << "Usage:" << endl << "   pid [tune] [p-value i-value d-value]" << endl;
 	exit(-1);
 }
 
@@ -58,14 +55,27 @@ int main(int argc, char ** argv) {
 	 */
 	if (argc != 1 && argc != 2 && argc != 4 && argc != 5)
 		printParamsError();
+
+	// Copy command line parameters into vector `args`, args[0] being the executable
 	vector<string> args(argv, argv + argc);
 
+	if ((argc ==2 || argc==5) && args[1]!="tune")
+		printParamsError();
+
+	if (argc==4 && args[1]=="tune")
+		printParamsError();
+
+	/*
+	 * Set default values for steering PID controller coefficients, and whether their tuning is needed.
+	 */
 	bool tuneParams { false };
-	double pParam = .110035;
-	double iParam = .004;
-	double dParam = .0866461;
+	double pParam = .292904;
+	double iParam = .00285759;
+	double dParam = .125998;
+
+	// Parse command line parameters
 	if (argc > 1 && args[1] == "tune") {
-		if (argc!=2 && argc!=5)
+		if (argc != 2 && argc != 5)
 			printParamsError();
 		tuneParams = true;
 	}
@@ -79,8 +89,8 @@ int main(int argc, char ** argv) {
 		dParam = stod(args[4]);
 	}
 
-	string s= tuneParams ? "Tuning starting with " : "Running with ";
-	cout << s << "P="<<pParam<<" I=" << iParam << " D=" << dParam << endl;
+	string s = tuneParams ? "Tuning starting with " : "Running with ";
+	cout << s << "P=" << pParam << " I=" << iParam << " D=" << dParam << endl;
 
 	uWS::Hub h;
 
@@ -106,25 +116,31 @@ int main(int argc, char ** argv) {
 							// j[1] is the data JSON object
 							double cte = std::stod(j[1]["cte"].get<std::string>());
 							cte=sign(cte)*pow(cte,2);
-							double speed = std::stod(j[1]["speed"].get<std::string>());
-							double speedError = speed-40;// Target speed 40
+							const double speed = std::stod(j[1]["speed"].get<std::string>());
+							const double speedError = speed-40;// Target speed 40 mph
 
 							// double angle = std::stod(j[1]["steering_angle"].get<std::string>());
 
 							totalError+=std::abs(cte);
 							++nSamples;
 
+							/*
+							 * If tuning of steering PID coefficients is requested, run one iteration of
+							 * twiddle every (approximately) `twiddleInterval` seconds.
+							 */
 							if (tuneParams) {
-								if (latestTwiddleTime<0)
-								latestTwiddleTime=pidSteering.getCurrentTimestamp();
+								if (latestTwiddleTime<0)  // Initialise the timestamp of the latest twiddle run
+									latestTwiddleTime=pidSteering.getCurrentTimestamp();
 								else {
-									auto currentTime =pidSteering.getCurrentTimestamp();
-									auto deltaT= (currentTime- latestTwiddleTime)/1000.0;
+									const auto currentTime =pidSteering.getCurrentTimestamp();
+									const auto deltaT= (currentTime- latestTwiddleTime)/1000.0;  // deltaT is in seconds
 									if (deltaT> twiddleInterval) {
-										double averageCte = totalError/nSamples;
-										bool paramsTuned = pidSteering.twiddle(averageCte);
-										if (paramsTuned)
-										cout << "Params tuning complete" << endl;
+										double averageError = totalError/nSamples;
+										bool paramsTuned = pidSteering.twiddle(averageError);
+										if (paramsTuned) {
+											cout << "Params tuning complete" << endl;
+											tuneParams=false;
+										}
 										totalError=0;
 										nSamples=0;
 										latestTwiddleTime=pidSteering.getCurrentTimestamp();
@@ -134,10 +150,10 @@ int main(int argc, char ** argv) {
 
 							auto steerValue = pidSteering.computeCorrection(cte);
 							if (steerValue<-1)
-							steerValue=-1;
+								steerValue=-1;
 							else if (steerValue > 1)
-							steerValue =1;
-							auto throttleValue=pidThrottle.computeCorrection(speedError);
+								steerValue =1;
+							const auto throttleValue=pidThrottle.computeCorrection(speedError);
 
 							json msgJson;
 							msgJson["steering_angle"] = steerValue;

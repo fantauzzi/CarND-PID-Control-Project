@@ -2,9 +2,11 @@
 #include <vector>
 
 class PID {
-
-	double errorPrev;  // Error computed at the previous iteration
-	double errorInt;  // Integral of the error over time
+	double Kp;  // Proportional term
+	double Ki;  // Integral term
+	double Kd;  // Derivative term
+	double errorPrev;  // Error computed at the previous iteration (to update Kd)
+	double errorInt;  // Integral of the error over time (to update Ki)
 	long long prevTimestamp;  // Time stamp of the previous iteration
 
 	/**
@@ -12,18 +14,20 @@ class PID {
 	 * @param params an array of three components, the P, I and T term respectively
 	 * @param error will be printed to console; won't affect the object state
 	 */
-	void setParams(std::vector<double> params, const double error);
+	void setParams(const std::vector<double> params, const double error);
 
 	/**
 	 * Set the controller parameter values.
 	 * @param params an array of three components, the P, I and T term respectively
 	 */
-	void setParams(std::vector<double> params);
+	void setParams(const std::vector<double> params);
 
 public:
-	double Kp;  // Proportional term
-	double Ki;  // Integral term
-	double Kd;  // Derivative term
+
+	/**
+	 * Returns the number of milliseconds elapsed since the epoch.
+	 */
+	static long long getCurrentTimestamp();
 
 	/**
 	 * Constructs a PID object with the given parameters
@@ -34,18 +38,13 @@ public:
 	PID(const double KpInit, const double KiInit, const double KdInit);
 
 	/**
-	 * Determines the current control value, based on the given cte. It also
-	 * updates errorPrev, errorInt and prevTimestmp. The first time it is called
+	 * Determines the current control value, based on the given error. It also
+	 * updates errorPrev, errorInt and prevTimestamp. The first time it is called
 	 * for a PID object, the produced control value is based on the proportional term only.
 	 * @param error the error value
 	 * @return the PID control value
 	 */
 	double computeCorrection(const double error);
-
-	/**
-	 * Returns the number of milliseconds elapsed since the epoch.
-	 */
-	static long long getCurrentTimestamp();
 
 	/**
 	 * Performs one steep of twiddle, updating the PID parameters based on the given error

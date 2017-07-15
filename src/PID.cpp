@@ -4,12 +4,12 @@
 #include <vector>
 #include <numeric>
 #include <cassert>
+#include <limits>
 
 using namespace std;
 
 PID::PID(const double KpInit, const double KiInit, const double KdInit) :
-		errorPrev { 0. }, errorInt { .0 }, prevTimestamp { -1 }, Kp { KpInit }, Ki {
-				KiInit }, Kd { KdInit } {
+		Kp { KpInit }, Ki {KiInit }, Kd { KdInit }, errorPrev { 0. }, errorInt { .0 }, prevTimestamp { -1 } {
 }
 
 long long PID::getCurrentTimestamp() {
@@ -30,23 +30,27 @@ double PID::computeCorrection(const double error) {
 		return -Kp * error;
 	}
 
-	// Update object state and compute and return control value
-	auto deltaT = (currentTimestamp - prevTimestamp) / 1000.0;  // convert to seconds
-	auto errorDiff = error - errorPrev;
+	// Update the object state and compute and return the control value
+	const auto deltaT = (currentTimestamp - prevTimestamp) / 1000.0;  // deltaT is in seconds
+	const auto errorDiff = error - errorPrev;
 	errorInt += error*deltaT;
-	double correction = -Kp * error - Kd * errorDiff / deltaT
+	const double correction = -Kp * error - Kd * errorDiff / deltaT
 			- Ki * errorInt;
 	prevTimestamp = currentTimestamp;
 	errorPrev = error;
 	return correction;
 }
 
-void PID::setParams(std::vector<double> params, const double error) {
+void PID::setParams(const std::vector<double> params, const double error) {
+	static double bestError = std::numeric_limits<double>::max();
+	if (error < bestError) {
+		bestError=error;
+		cout << "Best run so far with error = " << error << " and params P =" << Kp << ", I =" << Ki << ", D =" << Kd << endl << flush;
+	}
 	setParams(params);
-	cout << "Previous run error= " << error << ". Setting params to P=" << Kp << " I=" << Ki << " D=" << Kd << endl << flush;
 }
 
-void PID::setParams(std::vector<double> params) {
+void PID::setParams(const std::vector<double> params) {
 	assert(params.size() == 3);
 	Kp = params[0];  // Params are in this order because I want to tune P first, then D and finally I
 	Ki = params[2];
@@ -62,13 +66,16 @@ bool PID::twiddle(const double error) {
 		initialising, initialised, looping, if1, if2, done
 	};
 	static State state { initialising };
-	// When the sum of parameter changes goes under tolerance, the algorithm stops
-	static const double tollerance { 0.001 };
-	// Parameter changes, set to their initial values
+	// When the sum of coefficient changes goes under tolerance, the algorithm stops
+	static const double tollerance { 0.01 };
+	// Coefficient changes
 	static vector<double> deltaParams { .0, .0, .0 };
+	// Coefficients, in this order [P, D, I]
 	static vector<double> params {.0, .0, .0 };
-	static auto bestError = error;  // Keep track of the best error so far
-	static unsigned i = -1;  // Index of the parameter currently under update in params[]
+	// Keep track of the best (lowest) error so far
+	static auto bestError = error;
+	// Index of the coefficient currently under update in params[], incremented by 1 before first usage
+	static unsigned i = -1;
 
 	while (true) {
 		switch (state) {
@@ -78,9 +85,9 @@ bool PID::twiddle(const double error) {
 			params[0]=Kp;  // Note the order of params: P-D-I.
 			params[2]=Ki;
 			params[1]=Kd;
-			deltaParams[0] = Kp/4;
-			deltaParams[2] = Ki/4;
-			deltaParams[1] = Kd/4;
+			deltaParams[0] = Kp/5;
+			deltaParams[2] = Ki/5;
+			deltaParams[1] = Kd/5;
 			state = initialised;
 			return false;
 		}
