@@ -24,7 +24,7 @@ For the steering controller, error `e` is the square of the cross-track error (d
 
 For the throttle controller, error `e` is the difference between the measured speed and its target value, 40 mph.
 
-The time interval between two subsequent measurements is not guaranteed to be constant, therefore `Δt` must be measured at every controller update.
+The simulator does not guarantee the time interval between two subsequent measurements to be constant, therefore `Δt` must be measured at every controller update.
 
 As far as I observed, latency in the communication between controller and simulator is too small to have an impact, and I therefore ignored it in the implementation.
 
@@ -68,7 +68,7 @@ The program takes these optional arguments:
 
 `./pid [tune] [P-coefficient I-coefficient D-coefficient]`
 
-Argument `tune` directs the program to run a tuning algorithm ([twiddle](https://martin-thoma.com/twiddle/)) for its PID coefficients; see below for details. The next three parameters are the coeficients governing the PID controller; in case of parameters tuning, they are the optimisation starting values.
+Argument `tune` directs the program to run a tuning algorithm ([twiddle](https://martin-thoma.com/twiddle/)) for its steering PID coefficients; see below for details. The next three parameters are the coefficients governing the steering PID controller; in case of parameters tuning, they are the optimisation starting values.
 
 ## Considerations on Parameter Tuning
 
@@ -88,6 +88,6 @@ As the target speed is set higher, it is increasingly difficult to find values f
 
 For automated tuning, the program averages the steering error for 80 seconds, which is roughly the time for one lap at 40 mph. Based on that, the program determines the new coefficients setting with a twiddle algorithm implementation.
 
-The car keeps running in the simulator, and twiddle updates the controller parameters every 80 seconds. Best values found so far are printed to console along with their error.
+The car keeps running in the simulator, and twiddle updates the controller parameters every 64 seconds. Best values found so far are printed to console along with their error.
 
 Note that, afer starting the simulator, there is first one lap of "warm-up" before twiddle begins to run. Also, if the car goes off-track, the run needs to be manually re-started.

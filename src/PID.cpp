@@ -43,7 +43,7 @@ double PID::computeCorrection(const double error) {
 
 void PID::setParams(std::vector<double> params, const double error) {
 	setParams(params);
-	cout << "Previous run error= " << error << ". Setting params to P=" << Kp << " I=" << Ki << " D=" << Kd << endl;
+	cout << "Previous run error= " << error << ". Setting params to P=" << Kp << " I=" << Ki << " D=" << Kd << endl << flush;
 }
 
 void PID::setParams(std::vector<double> params) {

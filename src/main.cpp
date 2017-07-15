@@ -102,7 +102,7 @@ int main(int argc, char ** argv) {
 						auto j = json::parse(s);
 						std::string event = j[0].get<std::string>();
 						if (event == "telemetry") {
-							const double twiddleInterval = 10;  // seconds
+							const double twiddleInterval = 64;  // seconds
 							// j[1] is the data JSON object
 							double cte = std::stod(j[1]["cte"].get<std::string>());
 							cte=sign(cte)*pow(cte,2);
